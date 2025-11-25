@@ -2,6 +2,7 @@ use avian3d::prelude::*;
 use bevy::{
     ecs::{lifecycle::HookContext, world::DeferredWorld},
     gltf::GltfPlugin,
+    image::{ImageAddressMode, ImageSamplerDescriptor},
     input::common_conditions::input_just_pressed,
     light::{CascadeShadowConfigBuilder, DirectionalLightShadowMap},
     log::{LogPlugin, tracing_subscriber::field::MakeExt},
@@ -50,6 +51,14 @@ fn main() -> AppExit {
                         ))
                     },
                     ..default()
+                })
+                .set(ImagePlugin {
+                    default_sampler: ImageSamplerDescriptor {
+                        address_mode_u: ImageAddressMode::Repeat,
+                        address_mode_v: ImageAddressMode::Repeat,
+                        address_mode_w: ImageAddressMode::Repeat,
+                        ..ImageSamplerDescriptor::linear()
+                    },
                 })
                 .set(WindowPlugin {
                     primary_window: Window {
