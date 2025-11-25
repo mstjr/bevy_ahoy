@@ -8,7 +8,7 @@ use bevy_ecs::{
 };
 use core::time::Duration;
 use std::sync::Arc;
-use tracing::{info, warn};
+use tracing::warn;
 
 use crate::{input::AccumulatedInput, prelude::*};
 
@@ -535,7 +535,6 @@ fn categorize_position(
         {
             state.grounded = Some(hit);
         } else {
-            info!("{hit:?}");
             state.grounded = None;
             // TODO: set surface friction to 0.25 for some reason
         }
