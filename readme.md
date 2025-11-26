@@ -3,9 +3,35 @@
 [![crates.io](https://img.shields.io/crates/v/bevy_ahoy)](https://crates.io/crates/bevy_ahoy)
 [![docs.rs](https://docs.rs/bevy_ahoy/badge.svg)](https://docs.rs/bevy_ahoy)
 
-A cool KCC for Avian, heck yeah
+A fun 3D Kinematic Character Controller for [Bevy](https://github.com/bevyengine/bevy) + [Avian](https://github.com/avianphysics/avian) + [BEI](https://github.com/simgine/bevy_enhanced_input).
 
-I'll write more here later :)
+## What does that mean?
+
+*Character controller* means that this crate allows you to move characters in a video game around. This can be either player characters or NPCs.
+
+*Kinematic* means that the controller intentionally does not fully obey the simulation rules of the physics engine. That means that the character will for example ignore any forces.
+This tradeoff allows Ahoy to fully define its own separate model of how a character should move regardless of what the laws of physics say. The goal is not realism, the goal is *fun*.
+
+## Features / Roadmap
+
+- [x] walking / running: press keys to move, change the velocity if you want your character to run
+- [x] jumping: Jump up to a given height. No need to fiddle with speeds. Decide for yourself via BEI if you want release to jump, autojump, etc.
+- [x] crouching: crouch to reduce your controller's height and point of view, uncrouch only if there's enough space for it
+- [x] gravity: fine-tune it to your heart's content
+- [x] stair stepping: walk automatically onto objects that have a very low height, such as stair steps, small rocks, etc.
+- [x] ramp walking: walk up ramps under a certain angle of steepness. Fall down if the ramp is too steep.
+- [x] ground snapping: walk down ramps and stairs instead of flying off of them
+- [x] Quake/Source movement tech: air strafe, surf, bunny hopping, etc.
+- [ ] Events on state transitions: observe events for jump start, landing, stair stepping, etc. to add sound effects, particles, damage the character, etc.
+- [ ] Wall running
+- [ ] Mantling
+- [ ] Different movement in water
+- [ ] Surface friction
+- [ ] Ladders
+
+## Usage
+
+TODO ;)
 
 ## Inspiration
 
@@ -30,7 +56,7 @@ configurability of Ahoy. If you need specific features to your game that Ahoy do
 it. Feel free to open an issue or ping me on the Bevy Discord if you need help with that :)
 
 With that said, here are some goals of Ahoy:
-- Require minimum setup
+- Require minimum setup for the common case
 - Handle most terrain you throw at it
 - Handle common collider shapes: Cuboids, cylinders, spheres, and in a pinch capsules
   - Sorry, Parry is not very good at capsules. You may want to use a cylinder instead for now :/
@@ -47,6 +73,7 @@ With that said, here are some goals of Ahoy:
   - I also just really like Avian <3
 - Give that flowy-snappy-freeing movement you know and love from the Source Engine and early id Tech games like Quake.
   - This includes cool movement tech like air strafing and surfing.
+- Work for first-person and third-person games
 
 In contrast, here are some deliberate non-goals:
 - Deep configurability: just fork it instead, it should hopefully be simple.
@@ -56,9 +83,11 @@ In contrast, here are some deliberate non-goals:
   - You can configure the schedule, but it must run as part of the fixed main loop to correctly work with Ahoy.
 - Work without `bevy_enhanced_input`
 - Other up-axis than Y
+  - This means no top-down support for now
 - Work as a dynamic character controller
 - Support every possible collider shape
 - Reproduce the behavior of Quake or Source exactly.
+- Work in 2D
 
 ## Compatibility
 
