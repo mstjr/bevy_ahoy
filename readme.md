@@ -43,6 +43,14 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 use bevy_ahoy::prelude::*;
 
+// app.add_plugins((
+//    DefaultPlugins,
+//    EnhancedInputPlugin,
+//    PhysicsPlugins::default(),
+//    AhoyPlugin::default(),
+// ))
+// .add_input_context::<PlayerInput>();
+
 #[derive(Component)]
 struct PlayerInput;
 
