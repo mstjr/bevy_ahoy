@@ -216,7 +216,7 @@ fn tweak_camera(insert: On<Insert, Camera3d>, mut commands: Commands, assets: Re
         Exposure { ev100: 9.0 },
         Bloom::default(),
         DistanceFog {
-            color: Color::srgba(0.35, 0.48, 0.66, 0.5),
+            color: Color::srgba(0.35, 0.48, 0.66, 0.4),
             directional_light_color: Color::srgba(1.0, 0.95, 0.85, 0.5),
             directional_light_exponent: 30.0,
             falloff: FogFalloff::from_visibility_colors(
@@ -268,7 +268,7 @@ fn dynamic_scene(mut suns: Query<&mut Transform, With<DirectionalLight>>, time: 
     for mut transform in suns.iter_mut() {
         transform.rotation =
             Quat::from_rotation_x(
-                -((-time.elapsed_secs() / 200.0) + TAU / 8.0).sin().abs() * TAU / 2.05,
-            ) * Quat::from_rotation_y(((-time.elapsed_secs() / 200.0) + 1.0).sin());
+                -((-time.elapsed_secs() / 100.0) + TAU / 8.0).sin().abs() * TAU / 2.05,
+            ) * Quat::from_rotation_y(((-time.elapsed_secs() / 100.0) + 1.0).sin());
     }
 }
