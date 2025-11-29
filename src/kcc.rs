@@ -14,13 +14,7 @@ use crate::{input::AccumulatedInput, prelude::*};
 
 pub(super) fn plugin(schedule: Interned<dyn ScheduleLabel>) -> impl Fn(&mut App) {
     move |app: &mut App| {
-        app.add_systems(
-            schedule,
-            (
-                run_kcc.in_set(AhoySystems::MoveCharacters),
-                write_back_velocity.in_set(PhysicsSystems::Last),
-            ),
-        );
+        app.add_systems(schedule, run_kcc.in_set(AhoySystems::MoveCharacters));
     }
 }
 
@@ -158,7 +152,6 @@ pub struct CharacterControllerState {
     pub grounded: Option<MoveHitData>,
     pub crouching: bool,
     pub touching_entities: EntityHashSet,
-    pub velocity: Vec3,
 }
 
 impl CharacterControllerState {
@@ -247,16 +240,7 @@ fn run_kcc(
         if state.grounded.is_some() {
             velocity.y = 0.0;
         }
-
-        state.velocity = **velocity;
-        **velocity = Vec3::ZERO;
         // TODO: check_falling();
-    }
-}
-
-fn write_back_velocity(mut kccs: Query<(&mut LinearVelocity, &CharacterControllerState)>) {
-    for (mut velocity, state) in &mut kccs {
-        **velocity = state.velocity;
     }
 }
 

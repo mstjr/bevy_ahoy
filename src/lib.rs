@@ -60,7 +60,7 @@ impl Plugin for AhoyPlugin {
             self.schedule,
             (AhoySystems::MoveCharacters)
                 .chain()
-                .before(PhysicsSystems::First),
+                .in_set(PhysicsSystems::First),
         )
         .add_plugins((
             camera::plugin,
