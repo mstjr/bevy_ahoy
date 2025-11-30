@@ -67,12 +67,7 @@ pub(crate) fn sync_camera_transform(
                     time.delta_secs(),
                 )
             } else {
-                let decay_rate = f32::ln(100000.0);
-                camera_transform.translation.y.smooth_nudge(
-                    &new_translation.y,
-                    decay_rate,
-                    time.delta_secs(),
-                )
+                camera_transform.translation.y = new_translation.y;
             }
         }
     }
