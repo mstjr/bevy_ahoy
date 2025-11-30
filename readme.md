@@ -21,13 +21,12 @@ This tradeoff allows Ahoy to fully define its own separate model of how a charac
 - [x] **Walking / Running**: press keys to move, change the velocity if you want your character to run
 - [x] **Jumping**: Jump up to a given height. No need to fiddle with speeds. Decide for yourself via BEI if you want release to jump, autojump, etc.
 - [x] **Crouching**: crouch to reduce your controller's height and point of view, uncrouch only if there's enough space for it
-- [x] **Gravity**: fine-tune it to your heart's content
 - [x] **Stair stepping**: walk automatically onto objects that have a very low height, such as stair steps, small rocks, etc.
 - [x] **Ramp walking**: walk up ramps under a certain angle of steepness. Fall down if the ramp is too steep.
 - [x] **Ground snapping**: walk down ramps and stairs instead of flying off of them
 - [x] **Quake/Source movement tech**: air strafe, surf, bunny hopping, etc.
 - [x] **Push objects**: Move into dynamic rigid bodies to apply force to them
-- [x] **First person camera controller**: Add `CameraOfCharacterController` to a camera to have out-of-the-box first person camera behavior
+- [x] **First person camera controller**: Add `CharacterControllerCameraOf` to a camera to have out-of-the-box first person camera behavior
 - [x] **Coyote Time**: Jump a tiny bit after walking off a ledge for a better jump feeling
 - [x] **Input Buffering**: Press the jump button a bit before actually hitting the ground to immediately jump
 - [ ] **Be pushed**: Stand next to a moving kinematic rigid body to be pushed by it. Put the player in peril by surrounding them with approaching walls!
