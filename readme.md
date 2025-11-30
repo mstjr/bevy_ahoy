@@ -7,6 +7,8 @@ A fun 3D Kinematic Character Controller for [Bevy](https://github.com/bevyengine
 
 <https://github.com/user-attachments/assets/ad1648d9-8a3d-43a6-9e20-886d6bb2eaad>
 
+*Surf gameplay by Boonie, who kindly converted the Utopia surf map to a compatible format. See assets/maps/license.md for licensing information*
+
 ## What does that mean?
 
 *Character controller* means that this crate allows you to move characters in a video game around. This can be either player characters or NPCs.
