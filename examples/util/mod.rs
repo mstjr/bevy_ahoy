@@ -189,7 +189,8 @@ fn toggle_debug(
 
 fn reset_player_inner(
     world: &mut World,
-    mut player: Local<QueryState<(&mut Transform, &mut LinearVelocity), With<CharacterController>>>,
+    // Mutating the player `Transform` breaks on web for some reason? I blame interpolation.
+    mut player: Local<QueryState<(&mut Position, &mut LinearVelocity), With<CharacterController>>>,
     mut camera: Local<QueryState<&mut Transform, (With<Camera3d>, Without<CharacterController>)>>,
     mut spawner: Local<QueryState<&Transform, (Without<CharacterController>, Without<Camera3d>)>>,
 ) {
@@ -214,11 +215,11 @@ fn reset_player_inner(
         return;
     };
 
-    let Ok((mut transform, mut velocity)) = player.single_mut(world) else {
+    let Ok((mut position, mut velocity)) = player.single_mut(world) else {
         return;
     };
     **velocity = Vec3::ZERO;
-    transform.translation = spawner_transform.translation;
+    position.0 = spawner_transform.translation;
     let Ok(mut camera_transform) = camera.single_mut(world) else {
         return;
     };

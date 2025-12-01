@@ -27,16 +27,17 @@ avian_pickup = { version= "0.3.0" }
 
 
 [dev-dependencies]
-bevy = { version = "0.17", features = ["track_location", "file_watcher", "dynamic_linking"] }
+bevy = { version = "0.17" }
 bevy_trenchbroom = "0.11.0"
 bevy_trenchbroom_avian = "0.11.0"
 bevy_mod_mipmap_generator = { git = "https://github.com/DGriffin91/bevy_mod_mipmap_generator" }
 avian3d = "0.4.1"
 bevy_framepace = "0.20.0"
 bevy_fix_cursor_unlock_web = "0.2.0"
+wasm-bindgen = "0.2.106"
 
 [package.metadata.bevy_cli.unstable]
-web-multi-threading = true
+#web-multi-threading = true
 
 [profile.dev]
 opt-level = 1
