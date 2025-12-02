@@ -105,6 +105,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
         air_acceleration_hz: 150.0,
         speed: 6.0,
         gravity: 23.0,
+        friction_hz: 4.0,
         ..default()
     },
     RigidBody::Kinematic,
@@ -168,7 +169,7 @@ impl PlayerInput {
                 ),
                 (
                     Action::<RotateCamera>::new(),
-                    Scale::splat(0.03),
+                    Scale::splat(0.05),
                     Bindings::spawn((
                         Spawn(Binding::mouse_motion()),
                         Axial::right_stick()

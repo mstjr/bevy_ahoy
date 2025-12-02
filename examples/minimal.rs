@@ -59,7 +59,7 @@ fn setup(mut commands: Commands, assets: Res<AssetServer>) {
                 ),
                 (
                     Action::<RotateCamera>::new(),
-                    Scale::splat(0.04),
+                    Scale::splat(0.05),
                     Bindings::spawn((
                         Spawn(Binding::mouse_motion()),
                         Axial::right_stick()
