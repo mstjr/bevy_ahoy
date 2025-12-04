@@ -321,7 +321,6 @@ fn handle_crane(time: &Time, move_and_slide: &MoveAndSlide, ctx: &mut CtxItem) -
     let cast_dir = Dir3::NEG_Y;
     let cast_len = up_dist - ctx.cfg.step_size + ctx.cfg.move_and_slide.skin_width;
     let hit = cast_move(cast_dir * cast_len, move_and_slide, ctx);
-    // Unwrap to 0.0 in case Parry wrongly reports no hit :/
     let Some(down_dist) = hit.map(|hit| hit.distance) else {
         ctx.transform.translation = original_position;
         ctx.velocity.0 = original_velocity;
