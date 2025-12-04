@@ -271,11 +271,9 @@ fn step_move(time: &Time, move_and_slide: &MoveAndSlide, ctx: &mut CtxItem) {
 
 fn handle_crane(time: &Time, move_and_slide: &MoveAndSlide, ctx: &mut CtxItem) -> bool {
     let Some(crane_time) = ctx.input.craned.clone() else {
-        //info!("a");
         return false;
     };
     if crane_time.elapsed() > ctx.cfg.crane_input_buffer {
-        info!("b");
         return false;
     }
     let original_position = ctx.transform.translation;
@@ -285,7 +283,6 @@ fn handle_crane(time: &Time, move_and_slide: &MoveAndSlide, ctx: &mut CtxItem) -
     ctx.velocity.y = ctx.state.base_velocity.y;
     ctx.state.crouching = true;
     let Ok((vel_dir, speed)) = Dir3::new_and_length(ctx.velocity.0) else {
-        info!("c");
         ctx.velocity.0 = original_velocity;
         ctx.state.crouching = original_crouching;
         return false;
@@ -309,15 +306,9 @@ fn handle_crane(time: &Time, move_and_slide: &MoveAndSlide, ctx: &mut CtxItem) -
     let cast_dir = Dir3::NEG_Y;
     let cast_len = up_dist - ctx.cfg.step_size + ctx.cfg.move_and_slide.skin_width;
     let hit = cast_move(cast_dir * cast_len, move_and_slide, ctx);
-    let Some(hit) = hit else {
-        info!(?original_position, pos=?ctx.transform.translation, ?cast_len, ?vel_dir, vel=?ctx.velocity.0, ?hit);
-        ctx.transform.translation = original_position;
-        ctx.velocity.0 = original_velocity;
-        ctx.state.crouching = original_crouching;
-        info!("d");
-        return false;
-    };
-    let crane_height = up_dist - hit.distance;
+    // Unwrap to 0.0 in case Parry wrongly reports no hit :/
+    let down_dist = hit.map(|hit| hit.distance).unwrap_or(0.0);
+    let crane_height = up_dist - down_dist;
 
     // Validate step back
     let cast_dir = -vel_dir;
@@ -336,12 +327,13 @@ fn handle_crane(time: &Time, move_and_slide: &MoveAndSlide, ctx: &mut CtxItem) -
 
     // step up
     ctx.transform.translation.y += crane_height;
+    depenetrate_character(move_and_slide, ctx);
 
     // try to slide from upstairs
     move_character(time, move_and_slide, ctx);
 
     let cast_dir = Dir3::NEG_Y;
-    let cast_len = ctx.cfg.move_and_slide.skin_width + ctx.cfg.ground_distance;
+    let cast_len = crane_height;
     let hit = cast_move(cast_dir * cast_len, move_and_slide, ctx);
 
     // If this doesn't hit, our crane was actually going through geometry. Bail.
