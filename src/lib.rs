@@ -188,7 +188,6 @@ impl Default for CharacterController {
             crane_input_buffer: Duration::from_millis(500),
             mantle_input_buffer: Duration::from_millis(150),
             // Measured from navel to second phalanx of index finger.
-            // This implies that a crouching character can climb less high, as their center is lower.
             max_mantle_dist: 1.15,
             auto_crouch_in_crane: false,
         }
