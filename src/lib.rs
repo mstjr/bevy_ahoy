@@ -188,7 +188,7 @@ impl Default for CharacterController {
             min_crane_ledge_space: 0.4,
             coyote_time: Duration::from_millis(100),
             jump_input_buffer: Duration::from_millis(150),
-            jump_crane_chain_time: Duration::from_millis(90),
+            jump_crane_chain_time: Duration::from_millis(140),
             crane_input_buffer: Duration::from_millis(200),
             mantle_input_buffer: Duration::from_millis(150),
             // Measured from navel to second phalanx of index finger.
