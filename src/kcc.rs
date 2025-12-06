@@ -287,7 +287,7 @@ fn handle_crane_movement(
     };
 
     let cast_dir = Vec3::Y;
-    let cast_len = (ctx.cfg.crane_speed * time.delta_secs()).max(crane_height);
+    let cast_len = (ctx.cfg.crane_speed * time.delta_secs()).min(crane_height);
     let top_hit = cast_move(cast_dir * cast_len, move_and_slide, ctx);
     let travel_dist = top_hit.map(|hit| hit.distance).unwrap_or(cast_len);
 
