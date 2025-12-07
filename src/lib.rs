@@ -185,7 +185,7 @@ impl Default for CharacterController {
             },
             max_speed: 100.0,
             jump_height: 1.8,
-            tac_power: 0.7,
+            tac_power: 0.755,
             tac_jump_factor: 1.0,
             tac_input_buffer: Duration::from_millis(150),
             max_tac_cos: 40.0_f32.to_radians().cos(),
