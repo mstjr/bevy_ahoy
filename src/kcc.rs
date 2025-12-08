@@ -5,6 +5,7 @@ use bevy_ecs::{
     schedule::ScheduleLabel,
     system::lifetimeless::{Read, Write},
 };
+use bevy_math::VectorSpace;
 use core::fmt::Debug;
 use std::time::Duration;
 use tracing::{error, info, warn};
@@ -290,27 +291,22 @@ fn handle_crane_movement(
 
     let wish_dir = if let Ok(wish_dir) = Dir3::new(wish_velocity) {
         wish_dir
-    } else if let Ok(vel_dir) = Dir3::new(ctx.velocity.0) {
-        vel_dir
     } else {
-        ctx.state.crane_height_left = None;
-        ctx.velocity.0 -= ctx.state.base_velocity;
-        return;
+        vel_dir
     };
+    ctx.velocity.0 -= ctx.state.base_velocity;
     // Check wall
     let cast_dir = wish_dir;
     let cast_len = ctx.cfg.min_crane_ledge_space;
     let Some(wall_hit) = cast_move(cast_dir * cast_len, move_and_slide, ctx) else {
         // nothing to move onto
         ctx.state.crane_height_left = None;
-        ctx.velocity.0 -= ctx.state.base_velocity;
         return;
     };
     let wall_normal = vec3(wall_hit.normal1.x, 0.0, wall_hit.normal1.z).normalize_or_zero();
 
     if (-wall_normal).dot(*wish_dir) < ctx.cfg.min_crane_cos {
         ctx.state.crane_height_left = None;
-        ctx.velocity.0 -= ctx.state.base_velocity;
         return;
     }
 
@@ -320,7 +316,10 @@ fn handle_crane_movement(
     let travel_dist = top_hit.map(|hit| hit.distance).unwrap_or(cast_len);
 
     ctx.transform.translation += cast_dir * travel_dist;
-    depenetrate_character(move_and_slide, ctx);
+    let velocity_stash = ctx.velocity.0;
+    **ctx.velocity = ctx.state.base_velocity;
+    move_character(time, move_and_slide, ctx);
+    **ctx.velocity = velocity_stash;
 
     *ctx.state.crane_height_left.as_mut().unwrap() = if top_hit.is_some() {
         0.0
@@ -337,7 +336,6 @@ fn handle_crane_movement(
             depenetrate_character(move_and_slide, ctx);
             ctx.state.crane_height_left = None;
         }
-        ctx.velocity.0 -= ctx.state.base_velocity;
         return;
     }
 
@@ -345,13 +343,11 @@ fn handle_crane_movement(
     let cast_len = ctx.cfg.min_crane_ledge_space;
     if cast_move(cast_dir * cast_len, move_and_slide, ctx).is_some() {
         ctx.state.crane_height_left = None;
-        ctx.velocity.0 -= ctx.state.base_velocity;
         return;
     }
     ctx.transform.translation += cast_dir * speed * time.delta_secs();
     depenetrate_character(move_and_slide, ctx);
     ctx.state.crane_height_left = None;
-    ctx.velocity.0 -= ctx.state.base_velocity;
 }
 
 fn handle_mantle_movement(
@@ -363,8 +359,6 @@ fn handle_mantle_movement(
     let Some(mantle_height) = ctx.state.mantle_height_left else {
         return;
     };
-
-    let original_velocity = *ctx.velocity;
 
     // Find closest wall
     let mut closest_wall = None;
@@ -396,9 +390,6 @@ fn handle_mantle_movement(
         return;
     };
 
-    ctx.velocity.y = 0.0;
-    ctx.velocity.0 += ctx.state.base_velocity;
-
     let climb_dir = Vec3::Y;
     // positive when looking at the wall or above it, negative when looking down
     let climb_dist =
@@ -408,7 +399,9 @@ fn handle_mantle_movement(
     let travel_dist =
         top_hit.map(|hit| hit.distance).unwrap_or(climb_dist.abs()) * climb_dist.signum();
 
-    ctx.transform.translation += climb_dir * travel_dist;
+    ctx.velocity.0 = climb_dir * travel_dist / time.delta_secs();
+    ctx.transform.translation +=
+        climb_dir * travel_dist + ctx.state.base_velocity * time.delta_secs();
     depenetrate_character(move_and_slide, ctx);
 
     *ctx.state.mantle_height_left.as_mut().unwrap() = if top_hit.is_some() {
@@ -421,16 +414,6 @@ fn handle_mantle_movement(
     } else {
         ctx.state.last_step_down.reset();
     }
-
-    let cast_len = ctx.cfg.min_mantle_ledge_space;
-    if wish_dir.dot(*wall_normal) < -0.01
-        && cast_move(wish_dir * cast_len, move_and_slide, ctx).is_none()
-    {
-        ctx.transform.translation += wish_dir * cast_len * time.delta_secs();
-        depenetrate_character(move_and_slide, ctx);
-        ctx.state.mantle_height_left = None;
-    }
-    ctx.velocity.0 -= ctx.state.base_velocity;
 }
 
 fn update_crane_state(
