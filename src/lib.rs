@@ -208,7 +208,7 @@ impl Default for CharacterController {
             crane_input_buffer: Duration::from_millis(200),
             mantle_input_buffer: Duration::from_millis(150),
             crane_height: 1.5,
-            mantle_height: 2.3,
+            mantle_height: 1.5,
             crane_speed: 11.0,
             mantle_speed: 1.0,
             min_ledge_grab_space: Cuboid::new(0.2, 0.1, 0.2),

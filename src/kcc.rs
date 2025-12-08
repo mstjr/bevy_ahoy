@@ -277,7 +277,6 @@ fn handle_crane_movement(
     let Some(crane_height) = ctx.state.crane_height_left else {
         return;
     };
-    ctx.state.last_step_up.reset();
     ctx.velocity.y = 0.0;
     ground_accelerate(wish_velocity, ctx.cfg.acceleration_hz, time, ctx);
     ctx.velocity.y = 0.0;
@@ -328,6 +327,7 @@ fn handle_crane_movement(
     } else {
         (crane_height - travel_dist).max(0.0)
     };
+    ctx.state.last_step_up.reset();
 
     if ctx.state.crane_height_left.unwrap() != 0.0 {
         let cast_dir = vel_dir;
@@ -364,17 +364,7 @@ fn handle_mantle_movement(
         return;
     };
 
-    let Ok(wish_dir) = Dir3::new(wish_velocity) else {
-        // Standing still
-        return;
-    };
     let original_velocity = *ctx.velocity;
-
-    ctx.state.last_step_up.reset();
-    ctx.velocity.y = 0.0;
-    //ground_accelerate(wish_velocity, ctx.cfg.acceleration_hz, time, ctx);
-    ctx.velocity.y = 0.0;
-    ctx.velocity.0 += ctx.state.base_velocity;
 
     // Find closest wall
     let mut closest_wall = None;
@@ -382,8 +372,7 @@ fn handle_mantle_movement(
         ctx.state.collider(),
         ctx.transform.translation,
         ctx.transform.rotation,
-        // Need a higher distance than skin width since we assume we're corrently not intersecting anything
-        ctx.cfg.move_and_slide.skin_width * 2.0,
+        ctx.cfg.climb_wall_distance + ctx.cfg.move_and_slide.skin_width,
         &ctx.cfg.filter,
         |contact_point, normal| {
             if normal.y.abs() < ctx.cfg.min_walk_cos
@@ -398,10 +387,17 @@ fn handle_mantle_movement(
     let Some((wall_dist, wall_normal)) = closest_wall else {
         // floating in air, bail
         ctx.state.mantle_height_left = None;
-        ctx.velocity.0 -= ctx.state.base_velocity;
-        info!("a');");
+        info!("a");
         return;
     };
+    let Ok(wish_dir) = Dir3::new(wish_velocity) else {
+        // Standing still
+        info!("b");
+        return;
+    };
+
+    ctx.velocity.y = 0.0;
+    ctx.velocity.0 += ctx.state.base_velocity;
 
     let climb_dir = Vec3::Y;
     // positive when looking at the wall or above it, negative when looking down
@@ -409,41 +405,31 @@ fn handle_mantle_movement(
         (ctx.cfg.mantle_speed * time.delta_secs() * (wish_dir.y + 0.5).min(1.0)).min(mantle_height);
 
     let top_hit = cast_move(climb_dir * climb_dist, move_and_slide, ctx);
-    let travel_dist = top_hit.map(|hit| hit.distance).unwrap_or(climb_dist);
+    let travel_dist =
+        top_hit.map(|hit| hit.distance).unwrap_or(climb_dist.abs()) * climb_dist.signum();
 
-    info!(?climb_dist, ?travel_dist);
     ctx.transform.translation += climb_dir * travel_dist;
     depenetrate_character(move_and_slide, ctx);
 
     *ctx.state.mantle_height_left.as_mut().unwrap() = if top_hit.is_some() {
         0.0
     } else {
-        // TODO: doesn't work when going down
         (mantle_height - travel_dist).max(0.0)
     };
-
-    if ctx.state.mantle_height_left.unwrap() != 0.0 {
-        let cast_len = ctx.cfg.min_mantle_ledge_space;
-        if wish_dir.dot(*wall_normal) < -0.01
-            && cast_move(wish_dir * cast_len, move_and_slide, ctx).is_none()
-        {
-            ctx.transform.translation += wish_dir * cast_len * time.delta_secs();
-            depenetrate_character(move_and_slide, ctx);
-            ctx.state.mantle_height_left = None;
-        }
-        ctx.velocity.0 -= ctx.state.base_velocity;
-        return;
+    if climb_dist > 0.0 {
+        ctx.state.last_step_up.reset();
+    } else {
+        ctx.state.last_step_down.reset();
     }
 
     let cast_len = ctx.cfg.min_mantle_ledge_space;
-    if cast_move(wish_dir * cast_len, move_and_slide, ctx).is_some() {
+    if wish_dir.dot(*wall_normal) < -0.01
+        && cast_move(wish_dir * cast_len, move_and_slide, ctx).is_none()
+    {
+        ctx.transform.translation += wish_dir * cast_len * time.delta_secs();
+        depenetrate_character(move_and_slide, ctx);
         ctx.state.mantle_height_left = None;
-        ctx.velocity.0 -= ctx.state.base_velocity;
-        return;
     }
-    ctx.transform.translation += wish_dir * cast_len * time.delta_secs();
-    depenetrate_character(move_and_slide, ctx);
-    ctx.state.mantle_height_left = None;
     ctx.velocity.0 -= ctx.state.base_velocity;
 }
 
@@ -453,9 +439,6 @@ fn update_crane_state(
     move_and_slide: &MoveAndSlide,
     ctx: &mut CtxItem,
 ) {
-    if ctx.state.crane_height_left.is_some() {
-        return;
-    }
     if ctx.state.mantle_height_left.is_none() {
         let Some(crane_time) = ctx.input.craned.clone() else {
             return;
@@ -467,6 +450,7 @@ fn update_crane_state(
 
     let Some(crane_height) = available_crane_height(wish_velocity, time, move_and_slide, ctx)
     else {
+        ctx.state.crane_height_left = None;
         return;
     };
 
@@ -475,6 +459,7 @@ fn update_crane_state(
     ctx.input.jumped = None;
     ctx.input.tac = None;
 
+    ctx.state.mantle_height_left = None;
     ctx.state.crane_height_left = Some(crane_height);
 }
 
@@ -591,11 +576,9 @@ fn update_mantle_state(
         ctx.state.mantle_height_left = None;
         return;
     }
-    if ctx.state.mantle_height_left.is_some() {
-        if ctx.input.jumped.is_some() {
-            ctx.input.jumped = None;
-            ctx.state.mantle_height_left = None;
-        }
+    if ctx.state.mantle_height_left.is_some() && ctx.input.jumped.is_some() {
+        ctx.input.jumped = None;
+        ctx.state.mantle_height_left = None;
         return;
     }
     let Some(mantle_time) = ctx.input.mantled.clone() else {
@@ -606,9 +589,9 @@ fn update_mantle_state(
     }
     let Some(mantle_height) = available_mantle_height(wish_velocity, time, move_and_slide, ctx)
     else {
+        ctx.state.mantle_height_left = None;
         return;
     };
-    error!("success");
 
     ctx.input.craned = None;
     ctx.input.mantled = None;
@@ -633,7 +616,6 @@ fn available_mantle_height(
         vel_dir
     } else {
         ctx.velocity.0 = original_velocity;
-        info!("a");
         return None;
     };
 
@@ -653,14 +635,12 @@ fn available_mantle_height(
     let Some(wall_hit) = cast_move(cast_dir * cast_len, move_and_slide, ctx) else {
         // nothing to move onto
         ctx.velocity.0 = original_velocity;
-        info!("b");
         return None;
     };
     let wall_normal = vec3(wall_hit.normal1.x, 0.0, wall_hit.normal1.z).normalize_or_zero();
 
     if (-wall_normal).dot(*wish_dir) < ctx.cfg.min_mantle_cos {
         ctx.velocity.0 = original_velocity;
-        info!("c");
         return None;
     }
 
@@ -688,7 +668,6 @@ fn available_mantle_height(
     else {
         ctx.transform.translation = original_position;
         ctx.velocity.0 = original_velocity;
-        info!("d");
         return None;
     };
     ctx.transform.translation += cast_dir * down_dist;
@@ -711,7 +690,6 @@ fn available_mantle_height(
     if cast_move_hands(cast_dir * cast_len, move_and_slide, ctx).is_some() {
         ctx.transform.translation = original_position;
         ctx.velocity.0 = original_velocity;
-        info!("e");
         return None;
     };
     ctx.transform.translation += cast_dir * cast_len;
@@ -724,13 +702,11 @@ fn available_mantle_height(
     let Some(hit) = hit else {
         ctx.transform.translation = original_position;
         ctx.velocity.0 = original_velocity;
-        info!("f");
         return None;
     };
     if hit.normal1.y < ctx.cfg.min_walk_cos {
         ctx.transform.translation = original_position;
         ctx.velocity.0 = original_velocity;
-        info!("g");
         return None;
     }
 
