@@ -7,7 +7,7 @@ use bevy_ecs::{
 };
 use core::fmt::Debug;
 use core::time::Duration;
-use tracing::{info, warn};
+use tracing::warn;
 
 use crate::{CharacterControllerState, MantleProgress, input::AccumulatedInput, prelude::*};
 
@@ -371,6 +371,7 @@ fn handle_mantle_movement(
         return;
     };
 
+    ctx.velocity.0 = Vec3::ZERO;
     let Ok(wish_dir) = Dir3::new(wish_velocity) else {
         // Standing still
         return;
