@@ -223,6 +223,8 @@ fn water_move(
         ctx.input.swim_up = false;
         wish_velocity += Vec3::Y * ctx.cfg.speed;
     };
+    // Avoid Space + W + Look up to go faster than either alone
+    wish_velocity = wish_velocity.clamp_length_max(ctx.cfg.speed);
     if wish_velocity == Vec3::ZERO {
         wish_velocity -= Vec3::Y * ctx.cfg.water_gravity;
     };
@@ -240,8 +242,6 @@ fn water_accelerate(wish_velocity: Vec3, acceleration_hz: f32, time: &Time, ctx:
     let Ok((wish_dir, wish_speed)) = Dir3::new_and_length(wish_velocity) else {
         return;
     };
-    // Avoid Space + W + Look up to go faster than either alone
-    let wish_speed = wish_speed.min(ctx.cfg.speed);
     let current_speed = ctx.velocity.dot(*wish_dir);
     let add_speed = wish_speed - current_speed;
 
@@ -1013,10 +1013,13 @@ fn calculate_platform_movement(
 }
 
 fn friction(time: &Time, ctx: &mut CtxItem) {
-    if ctx.state.grounded.is_none() && ctx.water.level <= WaterLevel::Touching {
+    let speed = if ctx.state.grounded.is_some() {
+        ctx.velocity.xz().length()
+    } else if ctx.water.level > WaterLevel::Touching {
+        ctx.velocity.length()
+    } else {
         return;
-    }
-    let speed = ctx.velocity.xz().length();
+    };
     if speed < 0.001 {
         return;
     }
