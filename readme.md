@@ -3,7 +3,7 @@
 > [!IMPORTANT]  
 > Bevy Ahoy makes use of an unreleased avian version.
 >
-> To ensure it works you'll need to patch it in your Cargo.toml
+> To ensure it works you'll need to add a patch in your Cargo.toml
 > ```toml
 > [patch.crates-io]
 > avian3d = { git = "https://github.com/avianphysics/avian" }
