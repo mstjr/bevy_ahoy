@@ -25,6 +25,7 @@ struct Ctx {
     transform: Write<Transform>,
     input: Write<AccumulatedInput>,
     cfg: Read<CharacterController>,
+    water: Read<WaterState>,
     cam: Option<Read<CharacterControllerCamera>>,
 }
 
@@ -45,11 +46,14 @@ fn run_kcc(
     move_and_slide: MoveAndSlide,
     // TODO: allow this to be other KCCs
     colliders: Query<ColliderComponents, Without<CharacterController>>,
+    waters: Query<Entity, With<Water>>,
 ) {
     let mut colliders = colliders.transmute_lens_inner();
     let colliders = colliders.query();
     let mut cams = cams.transmute_lens_inner();
     let cams = cams.query();
+    let mut waters = waters.transmute_lens_inner();
+    let waters = waters.query();
     for mut ctx in &mut kccs {
         ctx.state.touching_entities.clear();
         ctx.state.last_ground.tick(time.delta());
@@ -60,10 +64,12 @@ fn run_kcc(
         depenetrate_character(&move_and_slide, &mut ctx);
         update_grounded(&move_and_slide, &colliders, &time, &mut ctx);
 
-        handle_crouching(&move_and_slide, &mut ctx);
+        handle_crouching(&move_and_slide, &waters, &mut ctx);
 
-        // here we'd handle things like spectator, dead, noclip, etc.
-        start_gravity(&time, &mut ctx);
+        if ctx.water.level <= WaterLevel::Feet {
+            // here we'd handle things like spectator, dead, noclip, etc.
+            start_gravity(&time, &mut ctx);
+        }
 
         ctx.state.orientation = ctx
             .cam
@@ -89,14 +95,13 @@ fn run_kcc(
 
             // Friction is handled before we add in any base velocity. That way, if we are on a conveyor,
             //  we don't slow when standing still, relative to the conveyor.
-            if ctx.state.grounded.is_some() {
-                ctx.velocity.y = 0.0;
-                friction(&time, &mut ctx);
-            }
+            friction(&time, &mut ctx);
 
             validate_velocity(&mut ctx);
 
-            if ctx.state.grounded.is_some() {
+            if ctx.water.level > WaterLevel::Feet {
+                water_move(wish_velocity_3d, &time, &move_and_slide, &mut ctx);
+            } else if ctx.state.grounded.is_some() {
                 ground_move(wish_velocity, &time, &move_and_slide, &mut ctx);
             } else {
                 air_move(wish_velocity, &time, &move_and_slide, &mut ctx);
@@ -106,7 +111,9 @@ fn run_kcc(
         update_grounded(&move_and_slide, &colliders, &time, &mut ctx);
         validate_velocity(&mut ctx);
 
-        finish_gravity(&time, &mut ctx);
+        if ctx.water.level <= WaterLevel::Feet {
+            finish_gravity(&time, &mut ctx);
+        }
 
         if ctx.state.grounded.is_some() {
             ctx.velocity.y = ctx.state.base_velocity.y;
@@ -196,6 +203,50 @@ fn air_accelerate(wish_velocity: Vec3, acceleration_hz: f32, time: &Time, ctx: &
     let current_speed = ctx.velocity.dot(*wish_dir);
 
     let add_speed = wishspd - current_speed;
+
+    if add_speed <= 0.0 {
+        return;
+    }
+
+    // TODO: read this from ground
+    let surface_friction = 1.0;
+    let accel_speed = wish_speed * acceleration_hz * time.delta_secs() * surface_friction;
+    let accel_speed = f32::min(accel_speed, add_speed);
+
+    ctx.velocity.0 += accel_speed * wish_dir;
+}
+
+fn water_move(
+    mut wish_velocity: Vec3,
+    time: &Time,
+    move_and_slide: &MoveAndSlide,
+    ctx: &mut CtxItem,
+) {
+    if ctx.input.swim_up {
+        ctx.input.swim_up = false;
+        wish_velocity += Vec3::Y * ctx.cfg.speed;
+    };
+    // Avoid Space + W + Look up to go faster than either alone
+    wish_velocity = wish_velocity.clamp_length_max(ctx.cfg.speed);
+    if wish_velocity == Vec3::ZERO {
+        wish_velocity -= Vec3::Y * ctx.cfg.water_gravity;
+    };
+    wish_velocity *= ctx.cfg.water_slowdown;
+
+    water_accelerate(wish_velocity, ctx.cfg.water_acceleration_hz, time, ctx);
+    ctx.velocity.0 += ctx.state.base_velocity;
+
+    step_move(time, move_and_slide, ctx);
+
+    ctx.velocity.0 -= ctx.state.base_velocity;
+}
+
+fn water_accelerate(wish_velocity: Vec3, acceleration_hz: f32, time: &Time, ctx: &mut CtxItem) {
+    let Ok((wish_dir, wish_speed)) = Dir3::new_and_length(wish_velocity) else {
+        return;
+    };
+    let current_speed = ctx.velocity.dot(*wish_dir);
+    let add_speed = wish_speed - current_speed;
 
     if add_speed <= 0.0 {
         return;
@@ -841,6 +892,10 @@ fn update_grounded(
     time: &Time,
     ctx: &mut CtxItem,
 ) {
+    if ctx.water.level > WaterLevel::Feet {
+        set_grounded(None, colliders, time, ctx);
+        return;
+    }
     // TODO: reset surface friction here for some reason? something something water
 
     let y_vel = ctx.velocity.y;
@@ -961,20 +1016,24 @@ fn calculate_platform_movement(
 }
 
 fn friction(time: &Time, ctx: &mut CtxItem) {
-    let speed = ctx.velocity.length();
+    let speed = if ctx.state.grounded.is_some() {
+        ctx.velocity.xz().length()
+    } else if ctx.water.level > WaterLevel::Feet {
+        ctx.velocity.length()
+    } else {
+        return;
+    };
     if speed < 0.001 {
         return;
     }
 
     let mut drop = 0.0;
     // apply ground friction
-    if ctx.state.grounded.is_some() {
-        // TODO: read ground's friction
-        let surface_friction = 1.0;
-        let friction = ctx.cfg.friction_hz * surface_friction;
-        let control = f32::max(speed, ctx.cfg.stop_speed);
-        drop += control * friction * time.delta_secs();
-    }
+    // TODO: read ground's friction
+    let surface_friction = 1.0;
+    let friction = ctx.cfg.friction_hz * surface_friction;
+    let control = f32::max(speed, ctx.cfg.stop_speed);
+    drop += control * friction * time.delta_secs();
 
     let mut new_speed = (speed - drop).max(0.0);
     if new_speed != speed {
@@ -1141,19 +1200,19 @@ fn calculate_3d_wish_velocity(_cams: &Query<&Transform>, ctx: &CtxItem) -> Vec3 
     wish_dir * speed
 }
 
-fn handle_crouching(move_and_slide: &MoveAndSlide, ctx: &mut CtxItem) {
+fn handle_crouching(move_and_slide: &MoveAndSlide, waters: &Query<Entity>, ctx: &mut CtxItem) {
     if ctx.input.crouched {
         ctx.state.crouching = true;
     } else if ctx.state.crouching {
         // try to stand up
         ctx.state.crouching = false;
-        let is_intersecting = is_intersecting(move_and_slide, ctx);
+        let is_intersecting = is_intersecting(move_and_slide, waters, ctx);
         ctx.state.crouching = is_intersecting;
     }
 }
 
 #[must_use]
-fn is_intersecting(move_and_slide: &MoveAndSlide, ctx: &CtxItem) -> bool {
+fn is_intersecting(move_and_slide: &MoveAndSlide, waters: &Query<Entity>, ctx: &CtxItem) -> bool {
     let mut intersecting = false;
     // No need to worry about skin width, depenetration will take care of it.
     // If we used skin width, we could not stand up if we are closer than skin width to the ground,
@@ -1163,7 +1222,10 @@ fn is_intersecting(move_and_slide: &MoveAndSlide, ctx: &CtxItem) -> bool {
         ctx.transform.translation,
         ctx.transform.rotation,
         &ctx.cfg.filter,
-        |_| {
+        |e| {
+            if waters.contains(e) {
+                return true;
+            }
             intersecting = true;
             false
         },

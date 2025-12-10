@@ -19,10 +19,11 @@ pub mod prelude {
         AhoyPlugin, AhoySystems, CharacterController, PickupConfig,
         camera::{CharacterControllerCamera, CharacterControllerCameraOf},
         input::{
-            Crane, Crouch, DropObject, Jump, Mantle, Movement, PullObject, RotateCamera, Tac,
-            ThrowObject, YankCamera,
+            Crane, Crouch, DropObject, Jump, Mantle, Movement, PullObject, RotateCamera, SwimUp,
+            Tac, ThrowObject, YankCamera,
         },
         pickup,
+        water::{Water, WaterLevel, WaterState},
     };
 }
 
@@ -54,6 +55,7 @@ mod fixed_update_utils;
 pub mod input;
 mod kcc;
 mod pickup_glue;
+mod water;
 
 /// Also requires you to add [`PhysicsPlugins`] and [`EnhancedInputPlugin`] to work properly.
 pub struct AhoyPlugin {
@@ -92,6 +94,7 @@ impl Plugin for AhoyPlugin {
             camera::plugin,
             input::plugin,
             kcc::plugin(self.schedule),
+            water::plugin,
             fixed_update_utils::plugin,
             pickup_glue::plugin,
             dynamics::plugin(self.schedule),
@@ -115,9 +118,11 @@ pub enum AhoySystems {
     TranslationInterpolation,
     RigidBody = RigidBody::Kinematic,
     Collider = Collider::cylinder(0.7, 1.8),
+    WaterState,
     CustomPositionIntegration,
     Transform,
     SpeculativeMargin::ZERO,
+    CollidingEntities,
 )]
 #[component(on_add=CharacterController::on_add)]
 pub struct CharacterController {
@@ -132,7 +137,10 @@ pub struct CharacterController {
     pub friction_hz: f32,
     pub acceleration_hz: f32,
     pub air_acceleration_hz: f32,
+    pub water_acceleration_hz: f32,
+    pub water_slowdown: f32,
     pub gravity: f32,
+    pub water_gravity: f32,
     pub step_size: f32,
     pub crane_height: f32,
     pub crouch_speed_scale: f32,
@@ -179,7 +187,10 @@ impl Default for CharacterController {
             friction_hz: 6.0,
             acceleration_hz: 8.0,
             air_acceleration_hz: 12.0,
+            water_acceleration_hz: 12.0,
+            water_slowdown: 0.6,
             gravity: 29.0,
+            water_gravity: 2.4,
             step_size: 0.7,
             crouch_speed_scale: 1.0 / 3.0,
             speed: 12.0,

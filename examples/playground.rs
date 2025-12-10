@@ -185,7 +185,7 @@ impl PlayerInput {
                 ),
                 (
                     Action::<Mantle>::new(),
-                    ActionSettings { consume_input: true, ..default() },
+                    ActionSettings { consume_input: false, ..default() },
                     Hold::new(0.3),
                     bindings![
                         KeyCode::Space,
@@ -196,6 +196,11 @@ impl PlayerInput {
                     Action::<Crouch>::new(),
                     ActionSettings { consume_input: false, ..default() },
                     bindings![KeyCode::ControlLeft, GamepadButton::LeftTrigger],
+                ),
+                (
+                    Action::<SwimUp>::new(),
+                    ActionSettings { consume_input: false, ..default() },
+                    bindings![KeyCode::Space, GamepadButton::South],
                 ),
                 (
                     Action::<PullObject>::new(),
@@ -354,4 +359,22 @@ fn move_trains(
         let to_corner = corner_transform.translation() - train_transform.translation();
         train_vel.0 = to_corner.normalize_or_zero() * train.speed;
     }
+}
+
+#[solid_class(base(Transform, Visibility))]
+#[component(on_add = on_add_water)]
+#[derive(Default)]
+pub struct Water {
+    speed: f32,
+}
+
+fn on_add_water(mut world: DeferredWorld, ctx: HookContext) {
+    if world.is_scene_world() {
+        return;
+    }
+    let speed = world.get::<Water>(ctx.entity).unwrap().speed;
+    world
+        .commands()
+        .entity(ctx.entity)
+        .insert(bevy_ahoy::prelude::Water { speed });
 }
