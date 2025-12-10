@@ -229,7 +229,7 @@ impl Default for CharacterController {
             mantle_speed: 5.0,
             min_ledge_grab_space: Cuboid::new(0.2, 0.1, 0.2),
             climb_pull_up_height: 0.3,
-            max_ledge_grab_distance: 0.5,
+            max_ledge_grab_distance: 0.3,
         }
     }
 }
