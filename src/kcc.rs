@@ -103,6 +103,14 @@ fn run_kcc(
         } else {
             handle_jump(wish_velocity, &time, &colliders, &move_and_slide, &mut ctx);
 
+            apply_slope_gravity(
+                &time,
+                &colliders,
+                &rigid_bodies,
+                &default_friction,
+                &mut ctx,
+            );
+
             // Friction is handled before we add in any base velocity. That way, if we are on a conveyor,
             //  we don't slow when standing still, relative to the conveyor.
             friction(
@@ -1040,7 +1048,48 @@ fn friction(
     }
 
     let mut drop = 0.0;
-    let surface_friction = if let Some(grounded) = ctx.state.grounded.as_ref()
+    let surface_friction = get_friction(colliders, rigid_bodies, default_friction, ctx);
+
+    let friction = ctx.cfg.friction_hz * surface_friction;
+    let control = f32::max(speed, ctx.cfg.stop_speed);
+    drop += control * friction * time.delta_secs();
+
+    let mut new_speed = (speed - drop).max(0.0);
+    if new_speed != speed {
+        new_speed /= speed;
+        ctx.velocity.0 *= new_speed;
+    }
+}
+
+fn apply_slope_gravity(
+    time: &Time,
+    colliders: &Query<ColliderComponents>,
+    rigid_bodies: &Query<RigidBodyComponents>,
+    default_friction: &DefaultFriction,
+    ctx: &mut CtxItem,
+) {
+    if let Some(grounded) = &ctx.state.grounded {
+        let n = grounded.normal1;
+        let theta = n.angle_between(Vec3::Y);
+        let friction_coefficient = get_friction(colliders, rigid_bodies, default_friction, ctx);
+
+        if theta.tan() <= friction_coefficient {
+            return;
+        }
+
+        let g_vec = Vec3::new(0.0, -ctx.cfg.gravity, 0.0);
+        let g_projected = g_vec - g_vec.dot(n) * n;
+        ctx.velocity.0 += g_projected * time.delta_secs();
+    }
+}
+
+fn get_friction(
+    colliders: &Query<ColliderComponents>,
+    rigid_bodies: &Query<RigidBodyComponents>,
+    default_friction: &DefaultFriction,
+    ctx: &CtxItem,
+) -> f32 {
+    if let Some(grounded) = ctx.state.grounded.as_ref()
         && let Ok(ground) = colliders.get(grounded.entity)
     {
         if let Some(friction) = ground.friction {
@@ -1056,16 +1105,6 @@ fn friction(
         }
     } else {
         Friction::default().dynamic_coefficient
-    };
-
-    let friction = ctx.cfg.friction_hz * surface_friction;
-    let control = f32::max(speed, ctx.cfg.stop_speed);
-    drop += control * friction * time.delta_secs();
-
-    let mut new_speed = (speed - drop).max(0.0);
-    if new_speed != speed {
-        new_speed /= speed;
-        ctx.velocity.0 *= new_speed;
     }
 }
 
